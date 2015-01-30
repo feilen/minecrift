@@ -1245,101 +1245,89 @@
 +            this.lastEnableVsync != this.gameSettings.enableVsync)
 +        {
 +            changed = true;
-+            viewPortCount = 1;
 +            float superSampleScaleFactor = 1f;
 +            if (this.vrSettings.useFsaa)
 +                superSampleScaleFactor = this.vrSettings.fsaaScaleFactor;
 +
 +            displayFBWidth = (Display.getWidth() < 1) ? 1 : Display.getWidth();
 +            displayFBHeight = (Display.getHeight() < 1) ? 1 : Display.getHeight();
-+            distortionRenderTargetSize[0] = new Sizei(displayFBWidth, displayFBHeight);
-+            distortionRenderTargetSize[1] = distortionRenderTargetSize[0];
-+            this.EyeTextureSize[0].w = this.displayWidth = (int)Math.ceil((displayFBWidth * superSampleScaleFactor));
-+            this.EyeTextureSize[0].h = this.displayHeight = (int)Math.ceil((displayFBHeight * superSampleScaleFactor));
-+            this.EyeTextureSize[1] = this.EyeTextureSize[0];
++            for(int eye = 0; eye < 2; eye++) {
++                distortionRenderTargetSize[eye] = new Sizei(displayFBWidth, displayFBHeight);
++                this.EyeTextureSize[eye].w = this.displayWidth = (int)Math.ceil((displayFBWidth * superSampleScaleFactor));
++                this.EyeTextureSize[eye].h = this.displayHeight = (int)Math.ceil((displayFBHeight * superSampleScaleFactor));
++            }
 +
-+            FovPort leftFov = null;
-+            FovPort rightFov = null;
++            FovPort eyeFovs[] = new FovPort[2];
 +
 +            // Scale up the FBO to allow for the distortion
 +            if (this.stereoProvider.isStereo() && this.stereoProvider.usesDistortion())
 +            {
 +                if (this.vrSettings.useMaxFov)
 +                {
-+                    leftFov = hmdInfo.getHMDInfo().MaxEyeFov[0].enlargedFov(this.vrSettings.fovChange);
-+                    rightFov = hmdInfo.getHMDInfo().MaxEyeFov[1].enlargedFov(this.vrSettings.fovChange);
-+
++                	for(int eye = 0; eye < 2; eye++)
++                    	eyeFovs[eye] = hmdInfo.getHMDInfo().MaxEyeFov[eye].enlargedFov(this.vrSettings.fovChange);
 +                }
 +                else
 +                {
-+                    leftFov = hmdInfo.getHMDInfo().DefaultEyeFov[0].enlargedFov(this.vrSettings.fovChange);
-+                    rightFov = hmdInfo.getHMDInfo().DefaultEyeFov[1].enlargedFov(this.vrSettings.fovChange);
++                	for(int eye = 0; eye < 2; eye++)
++                		eyeFovs[eye] = hmdInfo.getHMDInfo().DefaultEyeFov[eye].enlargedFov(this.vrSettings.fovChange);
 +                }
 +
-+                System.out.println("L MaxEyeFov:     " + hmdInfo.getHMDInfo().MaxEyeFov[0].toString());
-+                System.out.println("R MaxEyeFov:     " + hmdInfo.getHMDInfo().MaxEyeFov[1].toString());
-+                System.out.println("L DefaultEyeFov: " + hmdInfo.getHMDInfo().DefaultEyeFov[0].toString());
-+                System.out.println("R DefaultEyeFov: " + hmdInfo.getHMDInfo().DefaultEyeFov[1].toString());
-+                System.out.println("L Fov:           " + leftFov.toString());
-+                System.out.println("R Fov:           " + rightFov.toString());
-+
-+                FovTextureInfo fovTextureInfo = this.stereoProvider.getFovTextureSize(leftFov, rightFov, renderScaleFactor);
++                
++                for(int eye = 0; eye < 2; eye++) {
++                	String direction = (eye == 0) ? "L" : "R";
++	                System.out.println(direction + " MaxEyeFov:     " + hmdInfo.getHMDInfo().MaxEyeFov[eye].toString());
++	                System.out.println(direction + " DefaultEyeFov: " + hmdInfo.getHMDInfo().DefaultEyeFov[eye].toString());
++	                System.out.println(direction + " Fov:           " + eyeFovs[eye].toString());
++                }
++                
++                FovTextureInfo fovTextureInfo = this.stereoProvider.getFovTextureSize(eyeFovs[0], eyeFovs[1], renderScaleFactor);
 +
 +                if (Display.isFullscreen() || this.isDirectMode)
 +                {
-+                    distortionRenderTargetSize[0] = fovTextureInfo.LeftFovTextureResolution;
-+                    distortionRenderTargetSize[1] = distortionRenderTargetSize[0];
-+                    this.EyeTextureSize[0].w = (int)Math.ceil(fovTextureInfo.LeftFovTextureResolution.w * superSampleScaleFactor);
-+                    this.EyeTextureSize[0].h = (int)Math.ceil(fovTextureInfo.LeftFovTextureResolution.h * superSampleScaleFactor);
-+                    this.EyeTextureSize[1] = this.EyeTextureSize[0];
++                	// Can set it to 'left' resolution since we do anyway
++                	for(int eye = 0; eye < 2; eye++) {
++	                    distortionRenderTargetSize[eye] = fovTextureInfo.LeftFovTextureResolution;
++	                    this.EyeTextureSize[eye].w = (int)Math.ceil(fovTextureInfo.LeftFovTextureResolution.w * superSampleScaleFactor);
++	                    this.EyeTextureSize[eye].h = (int)Math.ceil(fovTextureInfo.LeftFovTextureResolution.h * superSampleScaleFactor);
++                	}
 +                }
 +                else
 +                {
-+                    distortionRenderTargetSize[0] = new Sizei();
-+                    distortionRenderTargetSize[1] = new Sizei();
-+                    distortionRenderTargetSize[0].w = (int) Math.ceil((((float) fovTextureInfo.CombinedTextureResolution.w / (float) fovTextureInfo.HmdNativeResolution.w) * (float) this.displayFBWidth) / 2f);
-+                    distortionRenderTargetSize[0].h = (int) Math.ceil(((float) fovTextureInfo.CombinedTextureResolution.h / (float) fovTextureInfo.HmdNativeResolution.h) * (float) this.displayFBHeight);
-+                    distortionRenderTargetSize[1] = distortionRenderTargetSize[0];
-+                    this.EyeTextureSize[0].w = (int) Math.ceil((((float)fovTextureInfo.CombinedTextureResolution.w / (float)fovTextureInfo.HmdNativeResolution.w) * (float)this.displayFBWidth * superSampleScaleFactor) / 2f);
-+                    this.EyeTextureSize[0].h = (int) Math.ceil(((float)fovTextureInfo.CombinedTextureResolution.h / (float)fovTextureInfo.HmdNativeResolution.h) * (float)this.displayFBHeight * superSampleScaleFactor);
-+                    this.EyeTextureSize[1] = this.EyeTextureSize[0];
++                	for(int eye = 0; eye < 2; eye++) {
++                		distortionRenderTargetSize[eye] = new Sizei();
++                        distortionRenderTargetSize[eye].w = (int) Math.ceil((((float) fovTextureInfo.CombinedTextureResolution.w / (float) fovTextureInfo.HmdNativeResolution.w) * (float) this.displayFBWidth) / 2f);
++                        distortionRenderTargetSize[eye].h = (int) Math.ceil(((float) fovTextureInfo.CombinedTextureResolution.h / (float) fovTextureInfo.HmdNativeResolution.h) * (float) this.displayFBHeight);
++                        this.EyeTextureSize[eye].w = (int) Math.ceil((((float)fovTextureInfo.CombinedTextureResolution.w / (float)fovTextureInfo.HmdNativeResolution.w) * (float)this.displayFBWidth * superSampleScaleFactor) / 2f);
++                        this.EyeTextureSize[eye].h = (int) Math.ceil(((float)fovTextureInfo.CombinedTextureResolution.h / (float)fovTextureInfo.HmdNativeResolution.h) * (float)this.displayFBHeight * superSampleScaleFactor);
++                	}
 +                }
-+
-+                viewPortCount = 2;
 +
 +                // Oculus scaled render height seems ridiculous? For DK1, yes.
 +            }
 +
-+            if (this.framebuffers[0] != null) {
-+                this.framebuffers[0].deleteFramebuffer();
-+                this.framebuffers[0] = null;
-+            }
-+
-+            if (this.framebuffers[1] != null) {
-+                this.framebuffers[1].deleteFramebuffer();
-+                this.framebuffers[1] = null;
++            
++            for(int eye = 0; eye < 2; eye++) {
++                if (this.framebuffers[eye] != null) {
++                    this.framebuffers[eye].deleteFramebuffer();
++                    this.framebuffers[eye] = null;
++                }
 +            }
 +
 +            if (this.guiFramebuffer != null) {
 +                this.guiFramebuffer.deleteFramebuffer();
 +                this.guiFramebuffer = null;
 +            }
-+
-+            if (this.fsaaFirstPassResultFBO[0] != null) {
-+                this.fsaaFirstPassResultFBO[0].delete();
-+                this.fsaaFirstPassResultFBO[0] = null;
-+            }
-+            if (this.fsaaFirstPassResultFBO[1] != null) {
-+                this.fsaaFirstPassResultFBO[1].delete();
-+                this.fsaaFirstPassResultFBO[1] = null;
-+            }
-+            if (this.fsaaSecondPassResultFBO[0] != null) {
-+                this.fsaaSecondPassResultFBO[0].delete();
-+                this.fsaaSecondPassResultFBO[0] = null;
-+            }
-+            if (this.fsaaSecondPassResultFBO[1] != null) {
-+                this.fsaaSecondPassResultFBO[1].delete();
-+                this.fsaaSecondPassResultFBO[1] = null;
++            
++            for(int eye = 0; eye < 2; eye++) {
++                if (this.fsaaFirstPassResultFBO[eye] != null) {
++                    this.fsaaFirstPassResultFBO[eye].delete();
++                    this.fsaaFirstPassResultFBO[eye] = null;
++                }
++                if (this.fsaaSecondPassResultFBO[eye] != null) {
++                    this.fsaaSecondPassResultFBO[eye].delete();
++                    this.fsaaSecondPassResultFBO[eye] = null;
++                }	
 +            }
 +
 +            _LanczosShader_texelWidthOffsetUniform = -1;
@@ -1349,8 +1337,8 @@
 +            int multiSampleCount = 0;   // TODO: The SDK (0.3.2 preview) doesn't like anything other than 0 currently AFAICT
 +            boolean multiSample = (multiSampleCount > 0 ? true : false);
 +            boolean genMipMaps = true;
-+            this.entityRenderer.generatedIconMipmaps[0] = false;
-+            this.entityRenderer.generatedIconMipmaps[1] = false;
++            for(int eye = 0; eye < 2; eye++)
++            	this.entityRenderer.generatedIconMipmaps[eye] = false;
 +
 +            this.framebuffers[0] = new Framebuffer(this.EyeTextureSize[0].w, this.EyeTextureSize[0].h, true, genMipMaps);
 +            glConfig.TexId = this.framebuffers[0].framebufferTexture;
@@ -1361,8 +1349,8 @@
 +            this.guiFramebuffer  = new Framebuffer(this.displayFBWidth, this.displayFBHeight, true, genMipMaps);
 +            this.checkGLError("GUI framebuffer setup");
 +
-+            this.framebuffers[0].setFramebufferColor(RED_COLOUR_COMPONENT, GREEN_COLOUR_COMPONENT, BLUE_COLOUR_COMPONENT, 0.0F);
-+            this.framebuffers[1].setFramebufferColor(RED_COLOUR_COMPONENT, GREEN_COLOUR_COMPONENT, BLUE_COLOUR_COMPONENT, 0.0F);
++            for(int eye = 0; eye < 2; eye++)
++            	this.framebuffers[eye].setFramebufferColor(RED_COLOUR_COMPONENT, GREEN_COLOUR_COMPONENT, BLUE_COLOUR_COMPONENT, 0.0F);
 +            this.guiFramebuffer.setFramebufferColor(RED_COLOUR_COMPONENT, GREEN_COLOUR_COMPONENT, BLUE_COLOUR_COMPONENT, 0.0F);
 +
 +            try
@@ -1370,10 +1358,10 @@
 +                if (this.vrSettings.useFsaa)
 +                {
 +                    // Lanczos downsample FBOs
-+                    fsaaFirstPassResultFBO[0] = new FBOParams("FSAA Pass1 FBO1 ", GL11.GL_TEXTURE_2D, GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_INT, distortionRenderTargetSize[0].w, this.EyeTextureSize[0].h);
-+                    fsaaFirstPassResultFBO[1] = new FBOParams("FSAA Pass1 FBO2 ", GL11.GL_TEXTURE_2D, GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_INT, distortionRenderTargetSize[1].w, this.EyeTextureSize[1].h);
-+                    fsaaSecondPassResultFBO[0] = new FBOParams("FSAA Pass2 FBO1", GL11.GL_TEXTURE_2D, GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_INT, distortionRenderTargetSize[0].w, distortionRenderTargetSize[0].h);
-+                    fsaaSecondPassResultFBO[1] = new FBOParams("FSAA Pass2 FBO2", GL11.GL_TEXTURE_2D, GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_INT, distortionRenderTargetSize[1].w, distortionRenderTargetSize[1].h);
++                	for(int eye = 0; eye < 2; eye++) {
++                        fsaaFirstPassResultFBO[eye] = new FBOParams("FSAA Pass1 FBO1 ", GL11.GL_TEXTURE_2D, GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_INT, distortionRenderTargetSize[eye].w, this.EyeTextureSize[eye].h);
++                        fsaaSecondPassResultFBO[eye] = new FBOParams("FSAA Pass2 FBO1", GL11.GL_TEXTURE_2D, GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_INT, distortionRenderTargetSize[eye].w, distortionRenderTargetSize[eye].h);	
++                	}
 +
 +                    checkGLError("FSAA FBO creation");
 +
@@ -1423,15 +1411,15 @@
 +                                                                                         this.EyeTextureSize[1],
 +                                                                                         new Sizei(this.displayFBWidth, this.displayFBHeight),
 +                                                                                         glConfig,
-+                                                                                         leftFov,
-+                                                                                         rightFov);
++                                                                                         eyeFovs[0],
++                                                                                         eyeFovs[1]);
 +
-+                this.entityRenderer.eyeproj[EyeType.ovrEye_Left.value()] = this.stereoProvider.getMatrix4fProjection(leftFov, this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance);
-+                this.entityRenderer.eyeproj[EyeType.ovrEye_Right.value()] = this.stereoProvider.getMatrix4fProjection(rightFov, this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance);
-+                this.entityRenderer.skyproj[EyeType.ovrEye_Left.value()] = this.stereoProvider.getMatrix4fProjection(leftFov, this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance);   // The same as eyeproj?!
-+                this.entityRenderer.skyproj[EyeType.ovrEye_Right.value()] = this.stereoProvider.getMatrix4fProjection(rightFov, this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance); // The same as eyeproj?!
-+                this.entityRenderer.cloudproj[EyeType.ovrEye_Left.value()] = this.stereoProvider.getMatrix4fProjection(leftFov, this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance * 4f);
-+                this.entityRenderer.cloudproj[EyeType.ovrEye_Right.value()] = this.stereoProvider.getMatrix4fProjection(rightFov, this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance * 4f);
++                this.entityRenderer.eyeproj[EyeType.ovrEye_Left.value()] = this.stereoProvider.getMatrix4fProjection(eyeFovs[0], this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance);
++                this.entityRenderer.eyeproj[EyeType.ovrEye_Right.value()] = this.stereoProvider.getMatrix4fProjection(eyeFovs[1], this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance);
++                this.entityRenderer.skyproj[EyeType.ovrEye_Left.value()] = this.stereoProvider.getMatrix4fProjection(eyeFovs[0], this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance);   // The same as eyeproj?!
++                this.entityRenderer.skyproj[EyeType.ovrEye_Right.value()] = this.stereoProvider.getMatrix4fProjection(eyeFovs[1], this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance); // The same as eyeproj?!
++                this.entityRenderer.cloudproj[EyeType.ovrEye_Left.value()] = this.stereoProvider.getMatrix4fProjection(eyeFovs[0], this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance * 4f);
++                this.entityRenderer.cloudproj[EyeType.ovrEye_Right.value()] = this.stereoProvider.getMatrix4fProjection(eyeFovs[1], this.entityRenderer.minClipDistance, this.entityRenderer.clipDistance * 4f);
 +            }
 +
 +            this.lastDisplayFBWidth = this.displayFBWidth;
@@ -1452,19 +1440,15 @@
 +        {
 +            if (changed || reloadShaders)
 +            {
-+                if (shaderGroup[0] != null) {
-+                    shaderGroup[0].deleteShaderGroup();
-+                    shaderGroup[0] = null;
-+                }
-+
-+                if (shaderGroup[1] != null) {
-+                    shaderGroup[1].deleteShaderGroup();
-+                    shaderGroup[1] = null;
-+                }
++            	for(int eye = 0; eye < 2; eye++) {
++                    if (shaderGroup[eye] != null) {
++                        shaderGroup[eye].deleteShaderGroup();
++                        shaderGroup[eye] = null;
++                    }
++                    shaderGroup[eye] = this.entityRenderer.initShaderGroup(framebuffers[eye]);
++            	}
 +
 +                lastShaderIndex = this.entityRenderer.shaderIndex;
-+                shaderGroup[0] = this.entityRenderer.initShaderGroup(framebuffers[0]);
-+                shaderGroup[1] = this.entityRenderer.initShaderGroup(framebuffers[1]);
 +            }
 +        }
 +
@@ -1756,8 +1740,8 @@
 +
 +    public void minecriftFirstInit()
 +    {
-+        this.EyeTextureSize[0] = new Sizei();
-+        this.EyeTextureSize[1] = new Sizei();
++        for(int eye = 0; eye < 2; eye++)
++        	this.EyeTextureSize[eye] = new Sizei();
 +
 +        // Initialise Oculus library here (before LWJGL) to allow DirectMode support
 +

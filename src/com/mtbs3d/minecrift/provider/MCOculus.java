@@ -52,10 +52,10 @@ public class MCOculus extends OculusRift //OculusRift does most of the heavy lif
     public MCOculus()
     {
         super();
-        eyePose[0] = new Posef();
-        eyePose[1] = new Posef();
-        eulerOrient[0] = new EulerOrient();
-        eulerOrient[1] = new EulerOrient();
+        for(int eye = 0; eye < 2; eye++) {
+            eyePose[eye] = new Posef();
+            eulerOrient[eye] = new EulerOrient();      	
+        }
     }
 
     @Override
